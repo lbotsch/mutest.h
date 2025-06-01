@@ -76,20 +76,34 @@ name: C Tests
 on: [push, pull_request]
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: sudo apt-get install -y build-essential
-      - run: gcc -o test_suite test_suite.c
-      - run: ./test_suite --junit results.xml
-      - uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: results.xml
-      - uses: mikepenz/action-junit-report@v4
-        with:
-          report_paths: results.xml
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Install build tools
+      run: sudo apt-get update && sudo apt-get install -y build-essential
+    - name: Build test suite
+      run: gcc -o test_suite test_suite.c
+    - name: Run tests and generate JUnit report
+      id: run_tests
+      run: |
+        ./test_suite --junit results.xml
+      continue-on-error: true
+    - name: Upload test report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: results.xml
+    - name: Publish test results
+      if: always()
+      uses: mikepenz/action-junit-report@v4
+      with:
+        report_paths: results.xml
+    - name: Fail if tests failed
+      if: failure() || steps.run_tests.outcome == 'failure'
+      run: exit 1
 ```
 
 ## 📁 Project Structure Example

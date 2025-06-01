@@ -21,15 +21,24 @@ jobs:
       run: gcc -o test_suite test_suite.c
 
     - name: Run tests and generate JUnit report
-      run: ./test_suite --junit results.xml
+      id: run_tests
+      run: |
+        ./test_suite --junit results.xml
+      continue-on-error: true
 
-    - name: Upload JUnit test report
+    - name: Upload test report
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results
         path: results.xml
 
-    - name: Publish test results to GitHub Actions
+    - name: Publish test results
+      if: always()
       uses: mikepenz/action-junit-report@v4
       with:
         report_paths: results.xml
+
+    - name: Fail if tests failed
+      if: failure() || steps.run_tests.outcome == 'failure'
+      run: exit 1
