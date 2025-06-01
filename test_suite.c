@@ -42,6 +42,15 @@ MUT_TEST(test_float_eq_failure) {
   MUT_PASS();
 }
 
+MUT_TEST(test_long_computation) {
+  double d = 0.0;
+  for (size_t i = 0; i < 1000000000ul; ++i) {
+    d += (double)i;
+  }
+  MUT_ASSERT_FLOAT_EQ(d, 499999999067108992.0, 0.01);
+  MUT_PASS();
+}
+
 int main(int argc, char **argv) {
   MUT_RUN_TEST(test_addition);
   MUT_RUN_TEST(test_subtraction);
@@ -51,6 +60,7 @@ int main(int argc, char **argv) {
   MUT_RUN_TEST(test_neq_failure);
   MUT_RUN_TEST(test_str_eq_failure);
   MUT_RUN_TEST(test_float_eq_failure);
+  MUT_RUN_TEST(test_long_computation);
 
   MUT_REPORT(argc, argv);
 }

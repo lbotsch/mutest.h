@@ -9,6 +9,7 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef MUT_NOCOLOR
 #define RED(s) s
@@ -35,6 +36,7 @@ static int mut_tests_failed = 0;
 struct test_def {
   const char *name;
   int passed;
+  double duration;
   char *msg;
 };
 static struct {
@@ -109,13 +111,19 @@ static void mut_add_test(const char *name) {
     printf("Running " CYAN("%s") "...\n", #test);                              \
     mut_add_test(#test);                                                       \
     mut_tests_run++;                                                           \
-    if (test() == 1) {                                                         \
+    clock_t start = clock();                                                   \
+    int result = test();                                                       \
+    clock_t end = clock();                                                     \
+    double duration = (double)(end - start) / CLOCKS_PER_SEC;                  \
+    mut_test_env.tests[mut_test_env.size - 1].duration = duration;             \
+    if (result == 1) {                                                         \
       printf(GREEN(MUT_CHECK_MARK) " %s\n", #test);                            \
       mut_test_env.tests[mut_test_env.size - 1].passed = 1;                    \
     } else {                                                                   \
       mut_tests_failed++;                                                      \
       mut_test_env.tests[mut_test_env.size - 1].passed = 0;                    \
     }                                                                          \
+    printf("duration = %.03fs\n", duration);                                   \
   } while (0)
 
 #define MUT_SHIFT(argc, argv) (argc--,*argv++)
@@ -130,6 +138,9 @@ static void mut_add_test(const char *name) {
         mut_junit_output = MUT_SHIFT(argc, argv);                              \
       }                                                                        \
     }                                                                          \
+    double mut_total_duration = 0.0;                                           \
+    for (int i = 0; i < mut_tests_run; ++i)                                    \
+      mut_total_duration += mut_test_env.tests[i].duration;                    \
     printf("\n===== Test Report =====\n");                                     \
     if (mut_tests_failed) {                                                    \
       printf("Tests run: " CYAN("%d") "\n", mut_tests_run);                    \
@@ -137,6 +148,7 @@ static void mut_add_test(const char *name) {
     } else {                                                                   \
       printf(GREEN("All %d tests passed\n"), mut_tests_run);                   \
     }                                                                          \
+    printf("Total duration: %.03fs\n", mut_total_duration);                    \
     printf("=======================\n");                                       \
     if (mut_junit_output) {                                                    \
       FILE *f = fopen(mut_junit_output, "w");                                  \
@@ -145,10 +157,11 @@ static void mut_add_test(const char *name) {
         fprintf(f, "<testsuite tests=\"%d\" failures=\"%d\">\n",               \
                 mut_tests_run, mut_tests_failed);                              \
         for (int i = 0; i < mut_tests_run; ++i) {                              \
-          fprintf(f, "  <testcase name=\"%s\">\n",                             \
-                  mut_test_env.tests[i].name);                                 \
+          fprintf(f, "  <testcase name=\"%s\" time=\"%.03f\">\n",              \
+                  mut_test_env.tests[i].name, mut_test_env.tests[i].duration); \
           if (!mut_test_env.tests[i].passed)                                   \
-            fprintf(f, "    <failure>%s</failure>\n", mut_test_env.tests[i].msg); \
+            fprintf(f, "    <failure>%s</failure>\n",                          \
+                    mut_test_env.tests[i].msg);                                \
           fprintf(f, "  </testcase>\n");                                       \
         }                                                                      \
         fprintf(f, "</testsuite>\n");                                          \
